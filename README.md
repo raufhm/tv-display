@@ -5,7 +5,9 @@
 <p align="center">Turn an Android TV into a wireless second screen for your Mac.<br>
 Drag a window onto it and it shows up on the TV about 65 ms later.</p>
 
-<p align="center"><a href="https://tv-display-sandy.vercel.app">Website & downloads</a></p>
+<p align="center"><a href="https://tv-display-sandy.vercel.app">Website & downloads</a> · <a href="CONTRIBUTING.md">Contributing</a></p>
+
+<p align="center"><a href="https://github.com/raufhm/tv-display/actions/workflows/build.yml"><img src="https://github.com/raufhm/tv-display/actions/workflows/build.yml/badge.svg" alt="Build"></a></p>
 
 ---
 
@@ -98,14 +100,14 @@ Wire format (big-endian), Mac → TV: `int32 length, byte type, int64 capture ti
 
 ## Contributing
 
-Issues and pull requests are welcome. Ideas that would help:
+Issues and pull requests are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md), and if you try it on a new TV, please [send a TV report](https://github.com/raufhm/tv-display/issues/new?template=tv_report.yml). Ideas that would help:
 
 - Finding the TV automatically (Bonjour / Android NSD) instead of typing its IP
 - 1080p for TVs whose decoder can keep up
 - Test results from other TV brands and chips
 - Notarized release builds
 
-Please keep the TV app free of libraries and both builds free of IDE projects, so anyone can build them with one command.
+Please keep the TV app free of libraries and both builds free of IDE projects, so anyone can build them with one command. Report security problems privately (see [SECURITY.md](SECURITY.md)). This project follows the [Contributor Covenant](CODE_OF_CONDUCT.md).
 
 ## License
 

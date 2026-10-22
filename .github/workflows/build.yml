@@ -1,0 +1,44 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mac:
+    name: Mac app
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build universal app and DMG
+        run: cd mac && ./build.sh dmg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TV-Display-mac
+          path: mac/TV-Display.dmg
+          retention-days: 14
+
+  tv:
+    name: TV app
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Android SDK pieces
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "build-tools;35.0.0" "platforms;android-34" > /dev/null
+      - name: Build APK
+        # Signed with a throwaway key made on the fly, so these builds are for testing only:
+        # they won't install over a release build without uninstalling it first.
+        run: cd tv && ./build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TV-Display-tv
+          path: tv/build/tv-screen.apk
+          retention-days: 14

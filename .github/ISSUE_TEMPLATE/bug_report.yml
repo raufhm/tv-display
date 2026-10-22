@@ -1,0 +1,47 @@
+name: Bug report
+description: Something doesn't work as it should.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: input
+    id: tv
+    attributes:
+      label: TV
+      description: Brand and model, plus the chip if you know it (e.g. "TCL 32S6500, Realtek RTD284x").
+    validations:
+      required: true
+  - type: input
+    id: android
+    attributes:
+      label: Android version on the TV
+      placeholder: Android 9
+    validations:
+      required: true
+  - type: input
+    id: mac
+    attributes:
+      label: Mac and macOS version
+      placeholder: MacBook Pro M1 Pro, macOS 27.0.1
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Mac log
+      description: "Output of `tail -20 ~/Library/Logs/tvdisplay.log`"
+      render: text
+  - type: dropdown
+    id: network
+    attributes:
+      label: Network
+      options:
+        - Both on Wi-Fi
+        - Mac on Wi-Fi, TV on Ethernet
+        - Both on Ethernet
+        - Not sure

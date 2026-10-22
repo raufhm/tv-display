@@ -1,0 +1,48 @@
+name: TV report
+description: Tell us how TV Display runs on your TV, good or bad.
+title: "TV report: "
+labels: [tv-report]
+body:
+  - type: markdown
+    attributes:
+      value: Every TV has a different video chip, so these reports help a lot. Thank you!
+  - type: dropdown
+    id: result
+    attributes:
+      label: Does it work?
+      options:
+        - Works well
+        - Works, but with problems
+        - Doesn't work
+    validations:
+      required: true
+  - type: input
+    id: tv
+    attributes:
+      label: TV
+      description: Brand and model, plus the chip if you know it.
+    validations:
+      required: true
+  - type: input
+    id: android
+    attributes:
+      label: Android version on the TV
+    validations:
+      required: true
+  - type: input
+    id: mac
+    attributes:
+      label: Mac and macOS version
+    validations:
+      required: true
+  - type: textarea
+    id: stats
+    attributes:
+      label: Stats line
+      description: "While streaming, run `tail -5 ~/Library/Logs/tvdisplay.log` and paste the output."
+      render: text
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else?
+      description: Stutter, wrong colours, sound out of sync, how it feels in a video call…
