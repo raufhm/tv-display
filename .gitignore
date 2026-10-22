@@ -1,0 +1,17 @@
+# Build outputs (rebuild with ./build.sh; release files go on GitHub Releases)
+mac/build/
+mac/*.app/
+mac/*.dmg
+tv/build/
+art/out/
+site/downloads/
+
+# Signing keys: keep yours private, a new one is generated on first build
+*.keystore
+*.jks
+
+# Local tooling
+.vercel/
+.env*
+.claude/
+.DS_Store

@@ -1,0 +1,641 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TV Display</title>
+<meta name="description" content="Make your Android TV a wireless second screen for your Mac. A menu-bar app for macOS and a 97 KB app for the TV. No cables, no ads, no time limits.">
+<meta property="og:title" content="TV Display — your Android TV as a second Mac screen">
+<meta property="og:description" content="Drag a window over and it's on the TV about 65 ms later. No cables, no ads.">
+<meta property="og:image" content="/img/og.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="color-scheme" content="light">
+<link rel="icon" href="/img/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;700;800&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper: #fff7e8;
+  --paper-2: #ffeccc;
+  --card: #ffffff;
+  --ink: #1f1b16;
+  --ink-soft: #5d554b;
+  --sky: #3ab7ff;
+  --tomato: #ff6b4a;
+  --sun: #ffd23f;
+  --mint: #4fd1a5;
+  --lilac: #b9a6ff;
+  --indigo: #4b4fe0;
+  --line: 3px solid var(--ink);
+  --pop: 5px 5px 0 var(--ink);
+  --display: "Fredoka", "Nunito", system-ui, sans-serif;
+  --body: "Nunito", system-ui, -apple-system, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --bounce: cubic-bezier(.34, 1.56, .64, 1);
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; overflow-x: clip; }
+body {
+  margin: 0; background: var(--paper); color: var(--ink);
+  font: 500 17px/1.6 var(--body); -webkit-font-smoothing: antialiased;
+  overflow-x: hidden; overflow-x: clip; /* the tilted marquee pokes past the edges */
+  background-image: radial-gradient(rgba(31,27,22,.07) 1.2px, transparent 1.3px);
+  background-size: 22px 22px;
+}
+a { color: inherit; }
+code { font-family: var(--mono); font-size: .85em; }
+.wrap { max-width: 1140px; margin: 0 auto; padding: 0 24px; }
+h1, h2, h3 { font-family: var(--display); font-weight: 700; letter-spacing: -.01em; }
+
+/* ---------- Buttons ---------- */
+.btn {
+  display: inline-flex; flex-direction: column; gap: 1px; text-decoration: none;
+  padding: 12px 22px 11px; border: var(--line); border-radius: 16px;
+  background: var(--card); box-shadow: var(--pop);
+  transition: transform .18s var(--bounce), box-shadow .18s var(--bounce);
+}
+.btn b { font: 600 18px/1.2 var(--display); }
+.btn span { font: 500 12.5px var(--mono); color: var(--ink); opacity: .7; }
+.btn:hover { transform: translate(-2px, -2px) rotate(-1deg); box-shadow: 7px 7px 0 var(--ink); }
+.btn:active { transform: translate(5px, 5px); box-shadow: 0 0 0 var(--ink); transition-duration: .05s; }
+.btn.sky { background: var(--sky); }
+.btn.sun { background: var(--sun); }
+
+/* ---------- Nav ---------- */
+nav { display: flex; align-items: center; justify-content: space-between; padding: 20px 0; }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font: 700 21px var(--display); }
+.brand img { width: 36px; height: 36px; border: var(--line); border-radius: 10px; transition: transform .4s var(--bounce); }
+.brand:hover img { transform: rotate(-12deg) scale(1.1); }
+nav .links { display: flex; align-items: center; gap: 24px; font-weight: 700; }
+nav .links a { text-decoration: none; }
+nav .links a:not(.pill):hover { text-decoration: underline wavy var(--tomato) 2px; text-underline-offset: 6px; }
+.pill { padding: 6px 16px; border: var(--line); border-radius: 999px; background: var(--sun); box-shadow: 3px 3px 0 var(--ink); transition: transform .18s var(--bounce), box-shadow .18s var(--bounce); }
+.pill:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--ink); }
+
+/* ---------- Hero ---------- */
+.hero { display: grid; grid-template-columns: 1fr 1.15fr; gap: 40px; align-items: center; padding: 34px 0 70px; }
+.hero > * { min-width: 0; }
+h1 { font-size: clamp(42px, 5.6vw, 70px); line-height: 1.02; margin: 0 0 22px; }
+h1 .squig { position: relative; color: var(--indigo); }
+h1 .squig svg { position: absolute; left: -2%; bottom: -12px; width: 104%; height: 18px; overflow: visible; }
+h1 .squig path { stroke: var(--tomato); stroke-width: 6; fill: none; stroke-linecap: round;
+  stroke-dasharray: 420; stroke-dashoffset: 420; animation: draw 1s .6s ease-out forwards; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+.lede { font-size: 20px; color: var(--ink-soft); margin: 0 0 30px; max-width: 29em; }
+.lede b { color: var(--ink); background: linear-gradient(transparent 60%, var(--sun) 60%); padding: 0 2px; }
+.cta { display: flex; flex-wrap: wrap; gap: 16px; }
+.reqs { margin-top: 22px; font-size: 14.5px; color: var(--ink-soft); }
+
+.rise { opacity: 0; transform: translateY(24px); animation: rise .7s var(--bounce) forwards; }
+.rise.d1 { animation-delay: .08s; } .rise.d2 { animation-delay: .18s; } .rise.d3 { animation-delay: .28s; }
+@keyframes rise { to { opacity: 1; transform: none; } }
+
+/* ---------- Scene (one SVG, every moving part on a shared 7 s loop) ---------- */
+.scene { width: 100%; height: auto; display: block; overflow: visible; }
+.scene * { transform-box: fill-box; }
+.s-ink { stroke: var(--ink); stroke-width: 4; stroke-linejoin: round; stroke-linecap: round; }
+.loop { animation-duration: 7s; animation-iteration-count: infinite; animation-timing-function: ease-in-out; }
+
+.flyer { transform-origin: center; animation-name: fly; }
+@keyframes fly {
+  0%   { transform: translate(0, 30px) scale(.4); opacity: 0; }
+  5%   { transform: translate(0, 0) scale(1.08); opacity: 1; }
+  8%   { transform: translate(0, 0) scale(1); }
+  14%  { transform: translate(0, 0) scale(1); }
+  17%  { transform: translate(0, 5px) scale(1.12, .86); animation-timing-function: cubic-bezier(.2,.7,.4,1); }
+  31%  { transform: translate(135px, -150px) rotate(-12deg) scale(1.6, 1.75); animation-timing-function: cubic-bezier(.5,0,.8,.6); }
+  43%  { transform: translate(270px, -82px) rotate(7deg) scale(2.3); }
+  47%  { transform: translate(275px, -66px) rotate(0) scale(2.65, 2.15); }
+  52%  { transform: translate(275px, -74px) scale(2.36, 2.46); }
+  56%  { transform: translate(275px, -72px) scale(2.4); }
+  86%  { transform: translate(275px, -72px) scale(2.4); opacity: 1; }
+  92%  { transform: translate(275px, -72px) scale(2.1); opacity: 0; }
+  100% { transform: translate(0, 30px) scale(.4); opacity: 0; }
+}
+.cursor { transform-origin: 20% 10%; animation-name: cursor; }
+@keyframes cursor {
+  0%, 4% { transform: translate(40px, 40px); opacity: 0; }
+  9%  { transform: translate(0, 0); opacity: 1; }
+  12% { transform: translate(0, 0) scale(.8); }
+  14% { transform: translate(0, 0) scale(1); }
+  18% { transform: translate(-4px, 6px); opacity: 1; }
+  24%, 100% { transform: translate(-4px, 6px); opacity: 0; }
+}
+.trail { stroke-dasharray: 2 12; animation-name: trail; opacity: 0; }
+@keyframes trail { 0%, 18% { opacity: 0; stroke-dashoffset: 0; } 26%, 50% { opacity: .55; } 60%, 100% { opacity: 0; stroke-dashoffset: -60; } }
+
+.tv { transform-origin: 50% 100%; animation-name: hop; }
+@keyframes hop {
+  0%, 44% { transform: none; }
+  47% { transform: translateY(4px) scale(1.03, .96); }
+  51% { transform: translateY(-14px) scale(.98, 1.03); }
+  56%, 100% { transform: none; }
+}
+.face { animation-name: face; }
+@keyframes face { 0%, 44% { opacity: 1; } 47%, 88% { opacity: 0; } 93%, 100% { opacity: 1; } }
+.pupils { animation-name: look; }
+@keyframes look {
+  0%, 6% { transform: none; }
+  12%, 22% { transform: translate(-8px, 5px); }
+  32% { transform: translate(-6px, -7px); }
+  42% { transform: translate(-2px, 2px); }
+  92%, 100% { transform: none; }
+}
+.eyes { transform-origin: center; animation: blink 3.6s infinite; }
+@keyframes blink { 0%, 92%, 100% { transform: none; } 95% { transform: scaleY(.1); } }
+.antenna { transform-origin: 50% 100%; animation: wiggle 1.4s ease-in-out infinite alternate; }
+.antenna.b { animation-delay: -.7s; }
+@keyframes wiggle { from { transform: rotate(-7deg); } to { transform: rotate(7deg); } }
+.wave { opacity: 0; animation: wave 1.5s ease-out infinite; }
+.wave.w2 { animation-delay: .25s; } .wave.w3 { animation-delay: .5s; }
+@keyframes wave { 0% { opacity: 0; transform: translateX(-6px); } 30% { opacity: 1; } 100% { opacity: 0; transform: translateX(8px); } }
+.badge { transform-origin: center; animation-name: badge; }
+@keyframes badge {
+  0%, 50% { transform: scale(0) rotate(-30deg); }
+  56% { transform: scale(1.25) rotate(8deg); }
+  60%, 84% { transform: scale(1) rotate(6deg); }
+  90%, 100% { transform: scale(0) rotate(20deg); }
+}
+.shadow { transform-origin: center; animation-name: shadow; }
+@keyframes shadow { 0%, 47% { transform: none; } 51% { transform: scale(.82); opacity: .6; } 56%, 100% { transform: none; } }
+
+/* ---------- Marquee ---------- */
+.marquee { border-block: var(--line); background: var(--ink); color: var(--paper); overflow: hidden; transform: rotate(-1.2deg); margin: 10px -20px 0; }
+.marquee .track { display: flex; width: max-content; animation: slide 28s linear infinite; }
+.marquee span { font: 600 22px/1 var(--display); padding: 16px 0; white-space: nowrap; }
+.marquee i { font-style: normal; color: var(--sun); margin: 0 22px; }
+@keyframes slide { to { transform: translateX(-50%); } }
+
+/* ---------- Sections ---------- */
+section { padding: 96px 0 40px; }
+.kicker { display: inline-block; font: 500 13px var(--mono); text-transform: uppercase; letter-spacing: .08em;
+  padding: 4px 12px; border: var(--line); border-radius: 999px; background: var(--card); transform: rotate(-2deg); margin-bottom: 16px; }
+h2 { font-size: clamp(32px, 4vw, 48px); line-height: 1.08; margin: 0 0 14px; max-width: 18em; }
+.sub { color: var(--ink-soft); font-size: 18.5px; max-width: 38em; margin: 0; }
+
+.reveal { opacity: 0; transform: translateY(30px) rotate(-1deg); transition: opacity .6s ease, transform .7s var(--bounce); }
+.reveal.in { opacity: 1; transform: none; }
+
+/* How it works */
+.steps { position: relative; display: grid; grid-template-columns: repeat(5, 1fr); gap: 18px; margin-top: 54px; }
+.steps > * { min-width: 0; }
+.track-line { position: absolute; left: 6%; right: 6%; top: 46px; border-top: 4px dashed var(--ink); opacity: .25; }
+.packet { position: absolute; top: 28px; left: 4%; width: 44px; height: 34px; z-index: 2; opacity: 0; }
+.steps.in .packet { animation: travel 4.5s cubic-bezier(.45,.05,.55,.95) 1s infinite; }
+@keyframes travel {
+  0% { left: 4%; opacity: 0; transform: translateY(0) rotate(0); }
+  6% { opacity: 1; }
+  25% { transform: translateY(-14px) rotate(-8deg); }
+  50% { transform: translateY(0) rotate(4deg); }
+  75% { transform: translateY(-14px) rotate(-6deg); }
+  94% { opacity: 1; }
+  100% { left: calc(96% - 44px); opacity: 0; transform: translateY(0) rotate(0); }
+}
+.step { position: relative; background: var(--card); border: var(--line); border-radius: 20px; padding: 82px 16px 18px; box-shadow: var(--pop);
+  opacity: 0; transform: translateY(40px) scale(.9); }
+.steps.in .step { animation: boing .8s var(--bounce) forwards; }
+.steps.in .step:nth-of-type(2) { animation-delay: .12s; } .steps.in .step:nth-of-type(3) { animation-delay: .24s; }
+.steps.in .step:nth-of-type(4) { animation-delay: .36s; } .steps.in .step:nth-of-type(5) { animation-delay: .48s; }
+@keyframes boing { to { opacity: 1; transform: none; } }
+.step .num { position: absolute; top: 18px; left: 16px; width: 54px; height: 54px; border: var(--line); border-radius: 16px;
+  display: grid; place-items: center; font: 700 24px var(--display); transform: rotate(-6deg); transition: transform .3s var(--bounce); }
+.step:hover .num { transform: rotate(8deg) scale(1.1); }
+.step:nth-of-type(1) .num { background: var(--sky); } .step:nth-of-type(2) .num { background: var(--sun); }
+.step:nth-of-type(3) .num { background: var(--tomato); } .step:nth-of-type(4) .num { background: var(--mint); }
+.step:nth-of-type(5) .num { background: var(--lilac); }
+.step h3 { font-size: 20px; line-height: 1.15; margin: 0 0 6px; }
+.step p { margin: 0; font-size: 15px; color: var(--ink-soft); line-height: 1.45; }
+.step .tech { display: block; margin-top: 12px; font: 500 11.5px var(--mono); color: var(--ink-soft); }
+
+/* Two apps */
+.apps { display: grid; grid-template-columns: .85fr 1.15fr; gap: 44px; margin-top: 50px; align-items: start; }
+.apps > * { min-width: 0; }
+.frame-label { font: 700 17px var(--display); display: flex; gap: 10px; align-items: baseline; margin: 0 0 14px; }
+.frame-label span { font: 500 12.5px var(--mono); color: var(--ink-soft); }
+.menubar { border: var(--line); border-radius: 14px; background: var(--card); height: 42px; display: flex; align-items: center; justify-content: flex-end; gap: 16px; padding: 0 16px; box-shadow: var(--pop); }
+.menubar .ic { width: 18px; height: 12px; border-radius: 3px; background: var(--ink); opacity: .18; }
+.menubar .tvic { width: 32px; height: 26px; display: grid; place-items: center; border-radius: 7px; background: var(--sky); border: 2.5px solid var(--ink); }
+.menubar .tvic svg { width: 18px; }
+.menubar .clock { font: 800 13px var(--body); }
+.dropdown { margin: 12px 0 0 auto; width: min(290px, 100%); background: var(--card); border: var(--line); border-radius: 16px; box-shadow: var(--pop); padding: 8px; font-size: 14.5px; }
+.dropdown .it { display: flex; justify-content: space-between; padding: 6px 10px; border-radius: 8px; opacity: 0; transform: translateY(-6px); }
+.apps.in .dropdown .it { animation: drop .35s var(--bounce) forwards; animation-delay: calc(var(--i) * 70ms + .3s); }
+@keyframes drop { to { opacity: 1; transform: none; } }
+.dropdown .head { font: 700 15px var(--display); }
+.dropdown .st { color: var(--ink-soft); font-size: 13px; font-variant-numeric: tabular-nums; padding-left: 28px; }
+.dropdown .hl { background: var(--sky); font-weight: 800; }
+.dropdown hr { border: 0; border-top: 2px dashed rgba(31,27,22,.2); margin: 6px 8px; }
+.dropdown kbd { font: 500 12px var(--mono); color: var(--ink-soft); }
+.dropdown .hl kbd { color: var(--ink); }
+.dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--mint); border: 2px solid var(--ink); margin-right: 8px; vertical-align: -1px; animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 50% { transform: scale(1.35); } }
+
+.tvframe { position: relative; background: var(--ink); border: var(--line); border-radius: 22px; padding: 12px; box-shadow: var(--pop); margin-top: 40px; }
+.tvframe img { display: block; width: 100%; height: auto; border-radius: 10px; aspect-ratio: 16/9; }
+.tvframe::before, .tvframe::after { content: ""; position: absolute; top: -36px; width: 4px; height: 40px; background: var(--ink); border-radius: 4px; transform-origin: bottom; }
+.tvframe::before { left: 46%; transform: rotate(-28deg); }
+.tvframe::after { left: 53%; transform: rotate(24deg); }
+.tvframe .feet2 { position: absolute; bottom: -17px; left: 0; right: 0; display: flex; justify-content: space-between; padding: 0 16%; }
+.tvframe .feet2 i { width: 44px; height: 14px; background: var(--ink); border-radius: 0 0 14px 14px; }
+
+/* Numbers */
+.nums { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-top: 50px; }
+.nums > * { min-width: 0; }
+.num-card { border: var(--line); border-radius: 22px; padding: 22px 20px 20px; box-shadow: var(--pop); }
+.num-card:nth-child(1) { background: var(--sun); --r: -1.5deg; }
+.num-card:nth-child(2) { background: var(--mint); --r: 1deg; }
+.num-card:nth-child(3) { background: var(--sky); --r: -.8deg; }
+.num-card:nth-child(4) { background: var(--lilac); --r: 1.6deg; }
+.num-card.in { transform: rotate(var(--r)); }
+.num-card.in:hover { transform: rotate(0) scale(1.04); }
+.num-card .big { font: 700 clamp(44px, 5vw, 60px)/1 var(--display); font-variant-numeric: tabular-nums; }
+.num-card .big small { font-size: .42em; margin-left: 4px; }
+.num-card p { margin: 10px 0 0; font-size: 15px; font-weight: 800; line-height: 1.35; }
+.fine { color: var(--ink-soft); font-size: 14.5px; margin-top: 22px; max-width: 46em; }
+.wont { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-top: 30px; }
+.wont div { border: 3px dashed rgba(31,27,22,.35); border-radius: 18px; padding: 14px 16px; font-size: 15.5px; color: var(--ink-soft); background: rgba(255,255,255,.55); }
+.wont b { color: var(--ink); display: block; font-family: var(--display); font-size: 17px; font-weight: 600; }
+
+/* Install */
+.install { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 50px; }
+.install > * { min-width: 0; }
+.panel { background: var(--card); border: var(--line); border-radius: 24px; padding: 28px 26px 22px; box-shadow: var(--pop); position: relative; }
+.panel .tag { position: absolute; top: -18px; right: 22px; padding: 4px 14px; border: var(--line); border-radius: 999px; font: 600 15px var(--display); transform: rotate(4deg); }
+.panel:nth-child(1) .tag { background: var(--tomato); } .panel:nth-child(2) .tag { background: var(--sky); }
+.panel h3 { margin: 0 0 2px; font-size: 26px; }
+.panel .req { font: 500 13px var(--mono); color: var(--ink-soft); margin: 0 0 20px; }
+ol.how { list-style: none; margin: 0; padding: 0; counter-reset: s; }
+ol.how > li { counter-increment: s; position: relative; padding: 2px 0 18px 46px; font-size: 16px; }
+ol.how > li::before { content: counter(s); position: absolute; left: 0; top: 0; width: 32px; height: 32px; border: var(--line); border-radius: 50%;
+  display: grid; place-items: center; font: 700 15px var(--display); background: var(--paper-2); }
+ol.how .note { display: block; color: var(--ink-soft); font-size: 14.5px; margin-top: 4px; }
+pre { margin: 8px 0 0; padding: 10px 12px; border-radius: 12px; background: var(--paper); border: 2.5px solid var(--ink); font: 500 13px/1.5 var(--mono); overflow-x: auto; white-space: pre; }
+details { border-top: 2px dashed rgba(31,27,22,.25); padding-top: 14px; font-size: 15px; color: var(--ink-soft); }
+summary { cursor: pointer; color: var(--ink); font-weight: 800; }
+
+/* Footer */
+footer { margin-top: 80px; border-top: var(--line); background: var(--ink); color: var(--paper); }
+footer .wrap { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 28px 24px 36px; flex-wrap: wrap; }
+footer .bye { display: flex; align-items: center; gap: 14px; font: 600 18px var(--display); }
+footer .bye svg { width: 60px; animation: waveHi 2.4s ease-in-out infinite; transform-origin: 50% 100%; }
+@keyframes waveHi { 0%, 60%, 100% { transform: rotate(0); } 70% { transform: rotate(-10deg); } 80% { transform: rotate(8deg); } 90% { transform: rotate(-5deg); } }
+footer small { color: #c9bfae; font-size: 14px; }
+
+.confetti { position: fixed; width: 10px; height: 14px; border: 2px solid var(--ink); border-radius: 3px; pointer-events: none; z-index: 50; }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 960px) {
+  .hero { grid-template-columns: 1fr; padding-top: 10px; }
+  .steps { grid-template-columns: 1fr 1fr; }
+  .track-line, .packet { display: none; }
+  .apps, .install { grid-template-columns: 1fr; }
+  .nums { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 560px) {
+  .wrap { padding: 0 16px; }
+  nav .links a:not(.pill) { display: none; }
+  .steps { grid-template-columns: 1fr; }
+  .lede { font-size: 18px; }
+  .panel { padding: 26px 18px 18px; }
+  .marquee span { font-size: 18px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .rise, .reveal, .step, .dropdown .it { opacity: 1 !important; transform: none !important; }
+  .flyer, .badge, .trail, .cursor { display: none; }
+  h1 .squig path { stroke-dashoffset: 0; }
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <nav>
+    <a class="brand" href="/"><img src="/img/icon.png" alt="" width="36" height="36">TV Display</a>
+    <div class="links">
+      <a href="#how">How it works</a>
+      <a href="#numbers">Numbers</a>
+      <a href="https://github.com/raufhm/tv-display">GitHub</a>
+      <a class="pill" href="#install">Install</a>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <div>
+      <h1 class="rise">Make your TV a <span class="squig">second Mac screen<svg viewBox="0 0 300 18" preserveAspectRatio="none" aria-hidden="true"><path d="M4 12 Q 40 2 75 10 T 150 10 T 225 9 T 296 8"/></svg></span>.</h1>
+      <p class="lede rise d1">
+        Drag a window off your laptop and, <i>boing</i>, it's on the TV <b>about 65 ms later</b>.
+        Keep the video call big while you work on the small screen. No cables, no ads, no time limits.
+      </p>
+      <div class="cta rise d2">
+        <a class="btn sky dl" href="/downloads/TV-Display.dmg" download>
+          <b>Download for Mac</b><span>.dmg · 1.5 MB · macOS 14+</span>
+        </a>
+        <a class="btn sun" href="#tv-app">
+          <b>Get the TV app</b><span>.apk · 97 KB · Android TV 9+</span>
+        </a>
+      </div>
+      <p class="reqs rise d3">Apple silicon and Intel Macs, with any Android TV or Google TV on the same Wi-Fi. Free and <a href="https://github.com/raufhm/tv-display">open source</a>.</p>
+    </div>
+
+    <svg class="scene rise d2" viewBox="-10 0 610 420" role="img"
+         aria-label="Cartoon: a video call window hops from a laptop onto a smiling TV">
+      <ellipse cx="145" cy="352" rx="150" ry="12" fill="#1f1b16" opacity=".12"/>
+      <ellipse class="shadow loop" cx="445" cy="338" rx="125" ry="11" fill="#1f1b16" opacity=".12"/>
+
+      <g fill="none" stroke="#1f1b16" stroke-width="4" stroke-linecap="round">
+        <path class="wave"    d="M262 150 q14 18 0 36"/>
+        <path class="wave w2" d="M276 138 q24 30 0 60"/>
+        <path class="wave w3" d="M290 126 q34 42 0 84"/>
+      </g>
+
+      <!-- laptop -->
+      <g>
+        <rect class="s-ink" x="35" y="150" width="220" height="150" rx="16" fill="#2b2622"/>
+        <rect x="48" y="163" width="194" height="124" rx="8" fill="#dff3ff"/>
+        <rect x="48" y="163" width="194" height="13" rx="4" fill="#fff"/>
+        <circle cx="58" cy="169.5" r="2.6" fill="#1f1b16"/>
+        <rect x="200" y="166" width="14" height="7" rx="2" fill="#3ab7ff" stroke="#1f1b16" stroke-width="1.6"/>
+        <rect class="s-ink" x="60" y="190" width="64" height="44" rx="6" fill="#fff" stroke-width="3"/>
+        <path d="M68 204 h40 M68 213 h30 M68 222 h36" stroke="#1f1b16" stroke-width="3" stroke-linecap="round" opacity=".25"/>
+        <path class="s-ink" d="M14 300 H276 L292 326 Q294 334 284 334 H6 Q-4 334 -2 326 Z" fill="#e6dccb"/>
+        <path d="M118 300 h54 q-4 9 -12 9 h-30 q-8 0 -12 -9" fill="#1f1b16" opacity=".25"/>
+      </g>
+
+      <path class="trail loop" d="M180 228 C 230 80, 360 40, 445 150" fill="none" stroke="#1f1b16" stroke-width="5" stroke-linecap="round"/>
+
+      <!-- TV with antennas, face and feet -->
+      <g class="tv loop">
+        <g class="antenna"><line class="s-ink" x1="440" y1="70" x2="402" y2="16"/><circle class="s-ink" cx="400" cy="13" r="8" fill="#ff6b4a" stroke-width="3.5"/></g>
+        <g class="antenna b"><line class="s-ink" x1="452" y1="70" x2="494" y2="12"/><circle class="s-ink" cx="497" cy="9" r="8" fill="#ffd23f" stroke-width="3.5"/></g>
+        <path class="s-ink" d="M368 300 v18 h-22 q0 -10 10 -12" fill="#1f1b16"/>
+        <path class="s-ink" d="M522 300 v18 h22 q0 -10 -10 -12" fill="#1f1b16"/>
+        <rect class="s-ink" x="310" y="68" width="272" height="236" rx="24" fill="#2b2622"/>
+        <rect x="326" y="84" width="240" height="160" rx="10" fill="#4b4fe0"/>
+        <path d="M336 96 l28 0 M336 104 l14 0" stroke="#fff" stroke-width="4" stroke-linecap="round" opacity=".35"/>
+        <circle cx="352" cy="274" r="9" fill="#ff6b4a" stroke="#1f1b16" stroke-width="3"/>
+        <circle cx="382" cy="274" r="9" fill="#ffd23f" stroke="#1f1b16" stroke-width="3"/>
+        <path d="M480 266 h66 M480 280 h66" stroke="#fff" stroke-width="4" stroke-linecap="round" opacity=".25"/>
+        <g class="face loop">
+          <ellipse cx="398" cy="172" rx="12" ry="7" fill="#ff8fb1" opacity=".7"/>
+          <ellipse cx="494" cy="172" rx="12" ry="7" fill="#ff8fb1" opacity=".7"/>
+          <g class="eyes">
+            <ellipse cx="418" cy="146" rx="17" ry="20" fill="#fff" stroke="#1f1b16" stroke-width="3.5"/>
+            <ellipse cx="474" cy="146" rx="17" ry="20" fill="#fff" stroke="#1f1b16" stroke-width="3.5"/>
+            <g class="pupils loop">
+              <circle cx="420" cy="149" r="8" fill="#1f1b16"/><circle cx="423" cy="145" r="2.6" fill="#fff"/>
+              <circle cx="476" cy="149" r="8" fill="#1f1b16"/><circle cx="479" cy="145" r="2.6" fill="#fff"/>
+            </g>
+          </g>
+          <path d="M426 186 q20 22 40 0" fill="#ff6b4a" stroke="#1f1b16" stroke-width="3.5" stroke-linejoin="round"/>
+        </g>
+      </g>
+
+      <!-- the window that hops over: a little video call -->
+      <g transform="translate(170 222)">
+        <g class="flyer loop">
+          <rect x="-46" y="-31" width="92" height="62" rx="8" fill="#fff" stroke="#1f1b16" stroke-width="3"/>
+          <path d="M-46 -19 v-4 q0 -8 8 -8 h76 q8 0 8 8 v4 z" fill="#ffd23f" stroke="#1f1b16" stroke-width="3" stroke-linejoin="round"/>
+          <circle cx="-37" cy="-25" r="2.2" fill="#1f1b16"/><circle cx="-30" cy="-25" r="2.2" fill="#1f1b16"/>
+          <rect x="-40" y="-13" width="38" height="38" rx="5" fill="#4fd1a5" stroke="#1f1b16" stroke-width="2.4"/>
+          <rect x="2" y="-13" width="38" height="38" rx="5" fill="#b9a6ff" stroke="#1f1b16" stroke-width="2.4"/>
+          <circle cx="-21" cy="1" r="7" fill="#ffd9b0" stroke="#1f1b16" stroke-width="2.2"/>
+          <path d="M-33 25 q12 -16 24 0" fill="#ff6b4a" stroke="#1f1b16" stroke-width="2.2"/>
+          <circle cx="21" cy="1" r="7" fill="#c98c5a" stroke="#1f1b16" stroke-width="2.2"/>
+          <path d="M9 25 q12 -16 24 0" fill="#3ab7ff" stroke="#1f1b16" stroke-width="2.2"/>
+          <path d="M-24 0 h1 M-18 0 h1 M18 0 h1 M24 0 h1" stroke="#1f1b16" stroke-width="2" stroke-linecap="round"/>
+        </g>
+        <g transform="translate(30 4)">
+          <path class="cursor loop" d="M0 0 L0 26 L7 19 L12 30 L17 28 L12 17 L22 17 Z" fill="#fff" stroke="#1f1b16" stroke-width="3" stroke-linejoin="round"/>
+        </g>
+      </g>
+
+      <!-- latency sticker -->
+      <g transform="translate(548 64)">
+        <g class="badge loop">
+          <path d="M0 -40 l11 14 17 -6 -1 18 17 7 -12 13 9 15 -18 2 -2 18 -16 -8 -13 13 -6 -17 -18 2 5 -17 -16 -9 15 -10 -6 -17 18 1 3 -18 16 9 z"
+                fill="#ffd23f" stroke="#1f1b16" stroke-width="3" stroke-linejoin="round" transform="scale(1.12)"/>
+          <text x="0" y="-2" text-anchor="middle" font-family="Fredoka, sans-serif" font-weight="700" font-size="21" fill="#1f1b16">65 ms</text>
+          <text x="0" y="17" text-anchor="middle" font-family="Fredoka, sans-serif" font-weight="600" font-size="13" fill="#1f1b16">zoom!</text>
+        </g>
+      </g>
+    </svg>
+  </header>
+</div>
+
+<div class="marquee" aria-hidden="true">
+  <div class="track">
+    <span>no cables<i>✦</i>no ads<i>✦</i>no time limits<i>✦</i>no accounts<i>✦</i>open source<i>✦</i>stays on your Wi-Fi<i>✦</i>sound on the Mac or the TV<i>✦</i>97 KB on the TV<i>✦</i></span>
+    <span>no cables<i>✦</i>no ads<i>✦</i>no time limits<i>✦</i>no accounts<i>✦</i>open source<i>✦</i>stays on your Wi-Fi<i>✦</i>sound on the Mac or the TV<i>✦</i>97 KB on the TV<i>✦</i></span>
+  </div>
+</div>
+
+<section id="how">
+  <div class="wrap">
+    <div class="reveal">
+      <span class="kicker">How it works</span>
+      <h2>A real extra screen, not a mirror.</h2>
+      <p class="sub">macOS thinks you plugged in a monitor. It shows up in System Settings → Displays, and only what you put on it goes to the TV.</p>
+    </div>
+    <div class="steps" id="steps">
+      <div class="track-line"></div>
+      <svg class="packet" viewBox="0 0 44 34" aria-hidden="true">
+        <rect x="2" y="2" width="40" height="30" rx="6" fill="#fff" stroke="#1f1b16" stroke-width="3"/>
+        <path d="M2 10 v-2 q0 -6 6 -6 h28 q6 0 6 6 v2 z" fill="#ff6b4a" stroke="#1f1b16" stroke-width="3"/>
+        <circle cx="16" cy="21" r="2.5" fill="#1f1b16"/><circle cx="28" cy="21" r="2.5" fill="#1f1b16"/>
+      </svg>
+      <div class="step"><div class="num">1</div><h3>Your Mac grows a new screen</h3><p>A 1280×720 display appears, ready for windows.</p><span class="tech">CGVirtualDisplay</span></div>
+      <div class="step"><div class="num">2</div><h3>Only that screen is filmed</h3><p>Your main screen stays private.</p><span class="tech">ScreenCaptureKit</span></div>
+      <div class="step"><div class="num">3</div><h3>Squished into video</h3><p>The Mac's video chip shrinks each frame in a blink.</p><span class="tech">H.264 · VideoToolbox</span></div>
+      <div class="step"><div class="num">4</div><h3>Zips over your Wi-Fi</h3><p>If the TV falls behind, the Mac waits, so lag never piles up.</p><span class="tech">TCP on your LAN</span></div>
+      <div class="step"><div class="num">5</div><h3>The TV unsquishes it</h3><p>Its own video chip draws each frame the moment it's ready.</p><span class="tech">Android MediaCodec</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="apps">
+  <div class="wrap">
+    <div class="reveal">
+      <span class="kicker">Two tiny apps</span>
+      <h2>One lives in your menu bar. One lives on your TV.</h2>
+    </div>
+    <div class="apps" id="apps-grid">
+      <div>
+        <p class="frame-label">On the Mac <span>1.5 MB</span></p>
+        <div class="menubar" aria-hidden="true">
+          <i class="ic"></i><i class="ic"></i>
+          <span class="tvic"><svg viewBox="0 0 24 20"><rect x="2" y="2" width="20" height="13" rx="2.5" fill="none" stroke="#1f1b16" stroke-width="2.6"/><path d="M8 18 h8" stroke="#1f1b16" stroke-width="2.6" stroke-linecap="round"/></svg></span>
+          <i class="ic"></i><span class="clock">Thu 9:41</span>
+        </div>
+        <div class="dropdown" aria-label="The TV Display menu">
+          <div class="it head" style="--i:0">TV Display</div>
+          <div class="it" style="--i:1"><span><span class="dot"></span>Streaming to 192.168.18.8</span></div>
+          <div class="it st" style="--i:2">55 fps · 2.1 Mbps · 66 ms</div>
+          <hr>
+          <div class="it hl" style="--i:3"><span>Turn Off TV Display</span><kbd>⌘T</kbd></div>
+          <div class="it" style="--i:4"><span>Arrange Displays…</span></div>
+          <hr>
+          <div class="it" style="--i:5"><span>TV Address: 192.168.18.8…</span></div>
+          <div class="it" style="--i:6"><span>Frame Rate</span><kbd>›</kbd></div>
+          <div class="it" style="--i:7"><span>Quality</span><kbd>›</kbd></div>
+          <div class="it" style="--i:8"><span>Sound</span><kbd>›</kbd></div>
+          <hr>
+          <div class="it" style="--i:9"><span>Quit TV Display</span><kbd>⌘Q</kbd></div>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">On the TV <span>97 KB</span></p>
+        <div class="tvframe">
+          <img src="/img/tv-idle.jpg" width="1280" height="720" loading="lazy"
+               alt="The TV Display app on a TV, showing the TV's address and 'Waiting for your Mac'">
+          <div class="feet2"><i></i><i></i></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="numbers">
+  <div class="wrap">
+    <div class="reveal">
+      <span class="kicker">Numbers</span>
+      <h2>Measured on a real TV, not promised.</h2>
+    </div>
+    <div class="nums">
+      <div class="num-card reveal"><div class="big"><span data-count="65">65</span><small>ms</small></div><p>from the Mac to the TV, typically</p></div>
+      <div class="num-card reveal"><div class="big"><span data-count="55">55</span><small>fps</small></div><p>smooth enough for video calls</p></div>
+      <div class="num-card reveal"><div class="big"><span data-count="720">720</span><small>p</small></div><p>matches most budget TVs</p></div>
+      <div class="num-card reveal"><div class="big"><span data-count="97">97</span><small>KB</small></div><p>the whole TV app, no libraries</p></div>
+    </div>
+    <p class="fine reveal">
+      Measured from capture on the Mac to decoded on the TV, on a TCL Android TV (Realtek chip) over home Wi-Fi.
+      Big screen changes take 80–86 ms; the TV panel adds about one frame on top.
+    </p>
+    <div class="wont reveal">
+      <div><b>720p only</b>Keeps the TV's video chip fast and the picture smooth.</div>
+      <div><b>Same network</b>Your Mac and TV need to share a Wi-Fi or LAN.</div>
+      <div><b>Not notarized by Apple</b>macOS warns you once; the steps below get past it.</div>
+      <div><b>Sound on the TV needs macOS 14.2+</b>Older Macs keep the sound on the Mac.</div>
+    </div>
+  </div>
+</section>
+
+<section id="install">
+  <div class="wrap">
+    <div class="reveal">
+      <span class="kicker">Install</span>
+      <h2>Two apps, about five minutes.</h2>
+    </div>
+    <div class="install">
+      <div class="panel reveal" id="tv-app">
+        <span class="tag">first</span>
+        <h3>On the TV</h3>
+        <p class="req">Android TV / Google TV 9 or later</p>
+        <ol class="how">
+          <li>Install <b>Downloader</b> (by AFTVnews) from the Play Store on your TV.</li>
+          <li>Open it and type this address:
+            <pre class="tv-url">this-site/tv</pre>
+            <span class="note">When asked, let Downloader install unknown apps, then choose Install.</span>
+          </li>
+          <li>Open <b>TV Display</b> from your apps. It shows the TV's address, like <code>192.168.1.20</code>.</li>
+        </ol>
+        <details>
+          <summary>Prefer adb?</summary>
+          <p>With developer options and network debugging on:</p>
+<pre>adb connect 192.168.1.20:5555
+adb install TV-Display.apk</pre>
+          <p><a class="dl" href="/downloads/TV-Display.apk" download>Download TV-Display.apk</a> (97 KB)</p>
+        </details>
+      </div>
+
+      <div class="panel reveal">
+        <span class="tag">then</span>
+        <h3>On the Mac</h3>
+        <p class="req">macOS 14 Sonoma or later</p>
+        <ol class="how">
+          <li><a class="dl" href="/downloads/TV-Display.dmg" download>Download the .dmg</a> and drag <b>TV Display</b> into Applications.</li>
+          <li>Open it. macOS says it can't check the app: click <b>Done</b>, then go to
+            System Settings → Privacy &amp; Security and click <b>Open Anyway</b>.
+            <span class="note">Or, in Terminal:</span>
+<pre>xattr -dr com.apple.quarantine "/Applications/TV Display.app"</pre>
+          </li>
+          <li>Type the address shown on the TV, then allow <b>Screen Recording</b> when asked.</li>
+          <li>The TV icon fills in when it's streaming. Drag a window onto the new screen. Boing.</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span class="bye">
+      <svg viewBox="0 0 64 60" aria-hidden="true">
+        <line x1="30" y1="12" x2="22" y2="2" stroke="#fff7e8" stroke-width="3" stroke-linecap="round"/>
+        <line x1="34" y1="12" x2="44" y2="1" stroke="#fff7e8" stroke-width="3" stroke-linecap="round"/>
+        <rect x="6" y="12" width="52" height="40" rx="9" fill="#4b4fe0" stroke="#fff7e8" stroke-width="3"/>
+        <circle cx="24" cy="29" r="4" fill="#fff7e8"/><circle cx="40" cy="29" r="4" fill="#fff7e8"/>
+        <path d="M25 38 q7 7 14 0" fill="none" stroke="#fff7e8" stroke-width="3" stroke-linecap="round"/>
+        <path d="M18 52 v6 M46 52 v6" stroke="#fff7e8" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+      TV Display 1.0
+    </span>
+    <small>Free and open source (MIT) · <a href="https://github.com/raufhm/tv-display">github.com/raufhm/tv-display</a> · No accounts, no analytics.</small>
+  </div>
+</footer>
+
+<script>
+(() => {
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // Real short link for the Downloader app, whatever domain this is served from.
+  for (const el of document.querySelectorAll('.tv-url')) el.textContent = location.host + '/tv';
+
+  // Scroll reveals, the step packet, the menu drop-down and the count-ups.
+  const io = new IntersectionObserver((entries) => {
+    for (const e of entries) {
+      if (!e.isIntersecting) continue;
+      e.target.classList.add('in');
+      e.target.querySelectorAll('[data-count]').forEach(countUp);
+      io.unobserve(e.target);
+    }
+  }, { threshold: 0.2 });
+  document.querySelectorAll('.reveal, #steps, #apps-grid').forEach((el) => io.observe(el));
+
+  function countUp(el) {
+    if (still) return;
+    const to = +el.dataset.count, t0 = performance.now(), dur = 1100;
+    const tick = (t) => {
+      const p = Math.min(1, (t - t0) / dur);
+      el.textContent = Math.round(to * (1 - Math.pow(1 - p, 3)));
+      if (p < 1) requestAnimationFrame(tick);
+    };
+    el.textContent = '0';
+    requestAnimationFrame(tick);
+  }
+
+  // A little confetti pop on every download; the download itself carries on as normal.
+  const colors = ['#3ab7ff', '#ffd23f', '#ff6b4a', '#4fd1a5', '#b9a6ff'];
+  document.querySelectorAll('a.dl').forEach((a) => a.addEventListener('click', (ev) => {
+    if (still) return;
+    for (let i = 0; i < 22; i++) {
+      const c = document.createElement('i');
+      c.className = 'confetti';
+      c.style.background = colors[i % colors.length];
+      c.style.left = ev.clientX + 'px';
+      c.style.top = ev.clientY + 'px';
+      document.body.appendChild(c);
+      const ang = Math.random() * Math.PI * 2, dist = 70 + Math.random() * 110;
+      c.animate([
+        { transform: 'translate(-50%, -50%) rotate(0)', opacity: 1 },
+        { transform: `translate(${Math.cos(ang) * dist}px, ${Math.sin(ang) * dist - 40}px) rotate(${Math.random() * 720 - 360}deg)`, opacity: 1, offset: .7 },
+        { transform: `translate(${Math.cos(ang) * dist * 1.1}px, ${Math.sin(ang) * dist + 60}px) rotate(${Math.random() * 720}deg)`, opacity: 0 },
+      ], { duration: 1000 + Math.random() * 500, easing: 'cubic-bezier(.2,.8,.4,1)' }).onfinish = () => c.remove();
+    }
+  }));
+})();
+</script>
+</body>
+</html>

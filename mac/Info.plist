@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>CFBundleIdentifier</key><string>app.tvdisplay</string>
+  <key>CFBundleName</key><string>TV Display</string>
+  <key>CFBundleDisplayName</key><string>TV Display</string>
+  <key>CFBundleExecutable</key><string>TVDisplay</string>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleShortVersionString</key><string>1.0</string>
+  <key>CFBundleVersion</key><string>1</string>
+  <key>LSApplicationCategoryType</key><string>public.app-category.utilities</string>
+  <key>LSMinimumSystemVersion</key><string>14.0</string>
+  <key>LSUIElement</key><true/>
+  <key>NSHumanReadableCopyright</key><string>Wireless display for Android TV</string>
+  <key>NSAudioCaptureUsageDescription</key><string>TV Display plays your Mac's sound on the TV when you choose TV Speakers.</string>
+  <key>NSScreenCaptureUsageDescription</key><string>TV Display sends the picture of its virtual display to your TV.</string>
+</dict></plist>
