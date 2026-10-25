@@ -7,12 +7,14 @@
   <key>CFBundleExecutable</key><string>TVDisplay</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>1.0</string>
-  <key>CFBundleVersion</key><string>1</string>
+  <key>CFBundleShortVersionString</key><string>1.1</string>
+  <key>CFBundleVersion</key><string>2</string>
   <key>LSApplicationCategoryType</key><string>public.app-category.utilities</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>LSUIElement</key><true/>
   <key>NSHumanReadableCopyright</key><string>Wireless display for Android TV</string>
   <key>NSAudioCaptureUsageDescription</key><string>TV Display plays your Mac's sound on the TV when you choose TV Speakers.</string>
+  <key>NSLocalNetworkUsageDescription</key><string>TV Display finds your TV on the local network and streams the picture to it.</string>
+  <key>NSBonjourServices</key><array><string>_tvdisplay._tcp</string></array>
   <key>NSScreenCaptureUsageDescription</key><string>TV Display sends the picture of its virtual display to your TV.</string>
 </dict></plist>

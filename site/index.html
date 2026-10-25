@@ -546,7 +546,7 @@ footer small { color: #c9bfae; font-size: 14px; }
             <pre class="tv-url">this-site/tv</pre>
             <span class="note">When asked, let Downloader install unknown apps, then choose Install.</span>
           </li>
-          <li>Open <b>TV Display</b> from your apps. It shows the TV's address, like <code>192.168.1.20</code>.</li>
+          <li>Open <b>TV Display</b> once. After that it waits in the background, even after the TV restarts, and switches on by itself when your Mac connects.</li>
         </ol>
         <details>
           <summary>Prefer adb?</summary>
@@ -568,8 +568,9 @@ adb install TV-Display.apk</pre>
             <span class="note">Or, in Terminal:</span>
 <pre>xattr -dr com.apple.quarantine "/Applications/TV Display.app"</pre>
           </li>
-          <li>Type the address shown on the TV, then allow <b>Screen Recording</b> when asked.</li>
-          <li>The TV icon fills in when it's streaming. Drag a window onto the new screen. Boing.</li>
+          <li>It finds your TV by itself. Allow it to <b>find devices on your local network</b> and to use <b>Screen Recording</b> when macOS asks.</li>
+          <li>The TV icon fills in when it's streaming. Drag a window onto the new screen. Boing.
+            <span class="note">Text too small from the sofa? Menu bar → Text Size → Larger.</span></li>
         </ol>
       </div>
     </div>
@@ -587,7 +588,7 @@ adb install TV-Display.apk</pre>
         <path d="M25 38 q7 7 14 0" fill="none" stroke="#fff7e8" stroke-width="3" stroke-linecap="round"/>
         <path d="M18 52 v6 M46 52 v6" stroke="#fff7e8" stroke-width="3" stroke-linecap="round"/>
       </svg>
-      TV Display 1.0
+      TV Display 1.1
     </span>
     <small>Free and open source (MIT) · <a href="https://github.com/raufhm/tv-display">github.com/raufhm/tv-display</a> · No accounts, no analytics.</small>
   </div>

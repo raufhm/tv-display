@@ -21,6 +21,30 @@ struct StreamSettings {
     var mbps: Int
     var width = 1280
     var height = 720
+    var textSize = TextSize.normal
+}
+
+/// How big things look on the TV. The stream is always 1280×720; the larger sizes make macOS draw
+/// a smaller desktop at 2× (Retina), which is then scaled to 720p, so text is bigger and still sharp.
+enum TextSize: Int, CaseIterable {
+    case normal, larger, largest
+
+    var title: String {
+        switch self {
+        case .normal: return "Normal"
+        case .larger: return "Larger"
+        case .largest: return "Largest"
+        }
+    }
+    /// Desktop size in points, and the pixels macOS draws it at.
+    var points: (w: Int, h: Int) {
+        switch self {
+        case .normal: return (1280, 720)
+        case .larger: return (960, 540)
+        case .largest: return (800, 450)
+        }
+    }
+    var pixels: (w: Int, h: Int) { self == .normal ? points : (points.w * 2, points.h * 2) }
 }
 
 let logURL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs/tvdisplay.log")
@@ -51,8 +75,9 @@ func makeVirtualDisplay(_ cfg: StreamSettings) throws -> CGVirtualDisplay {
     let desc = CGVirtualDisplayDescriptor()
     desc.queue = DispatchQueue(label: "vdisplay")
     desc.name = "TV Display"
-    desc.maxPixelsWide = UInt32(cfg.width)
-    desc.maxPixelsHigh = UInt32(cfg.height)
+    // Room for the 2× text sizes (up to 1920×1080 pixels); the stream itself stays 720p.
+    desc.maxPixelsWide = 1920
+    desc.maxPixelsHigh = 1080
     desc.sizeInMillimeters = CGSize(width: 708, height: 398) // ~32" panel
     desc.vendorID = 0x7456
     desc.productID = 0x0720
@@ -60,10 +85,32 @@ func makeVirtualDisplay(_ cfg: StreamSettings) throws -> CGVirtualDisplay {
     desc.terminationHandler = { _, _ in log("virtual display terminated") }
     guard let display = CGVirtualDisplay(descriptor: desc) else { throw StreamError("Could not create the virtual display.") }
     let settings = CGVirtualDisplaySettings()
-    settings.hiDPI = 0
-    settings.modes = [CGVirtualDisplayMode(width: UInt32(cfg.width), height: UInt32(cfg.height), refreshRate: 60)]
+    settings.hiDPI = 1
+    settings.modes = TextSize.allCases.map {
+        CGVirtualDisplayMode(width: UInt32($0.points.w), height: UInt32($0.points.h), refreshRate: 60)
+    }
     guard display.apply(settings) else { throw StreamError("The virtual display rejected its settings.") }
     return display
+}
+
+/// Switches the virtual display to a text size. macOS lists the 2× modes but doesn't pick them on
+/// its own, so the mode is set explicitly. Returns false if the display isn't ready yet.
+@discardableResult
+func setTextSize(_ size: TextSize, displayID: CGDirectDisplayID) -> Bool {
+    let opts = [kCGDisplayShowDuplicateLowResolutionModes: kCFBooleanTrue] as CFDictionary
+    guard let modes = CGDisplayCopyAllDisplayModes(displayID, opts) as? [CGDisplayMode],
+          let mode = modes.first(where: {
+              $0.width == size.points.w && $0.height == size.points.h && $0.pixelWidth == size.pixels.w
+          }) else { return false }
+    if let cur = CGDisplayCopyDisplayMode(displayID), cur.width == mode.width, cur.pixelWidth == mode.pixelWidth {
+        return true
+    }
+    var config: CGDisplayConfigRef?
+    guard CGBeginDisplayConfiguration(&config) == .success else { return false }
+    CGConfigureDisplayWithDisplayMode(config, displayID, mode, nil)
+    let ok = CGCompleteDisplayConfiguration(config, .forSession) == .success
+    if ok { log("text size: \(size.title) (\(size.points.w)x\(size.points.h) at \(size.pixels.w)x\(size.pixels.h))") }
+    return ok
 }
 
 // MARK: - TCP link to the TV
@@ -553,6 +600,11 @@ final class StreamSession {
         let d = try makeVirtualDisplay(settings)
         display = d
         log("virtual display \(d.displayID) created (\(settings.width)x\(settings.height))")
+        // The display needs a moment to come online before its modes can be set.
+        for _ in 0..<30 {
+            if setTextSize(settings.textSize, displayID: d.displayID) { break }
+            try await Task.sleep(nanoseconds: 100_000_000)
+        }
         do {
             try await capture.start(displayID: d.displayID)
         } catch {
@@ -564,6 +616,12 @@ final class StreamSession {
     }
 
     func takeStats() -> LinkStats { link.takeStats() }
+
+    /// Changes the text size live; the stream keeps running.
+    func apply(textSize: TextSize) {
+        guard let id = display?.displayID else { return }
+        setTextSize(textSize, displayID: id)
+    }
 
     func stop() {
         audioQueue.sync {
