@@ -276,9 +276,8 @@ final class Controller: NSObject, NSMenuDelegate {
             statusLine.attributedTitle = dot(.systemOrange, "Needs Screen Recording permission")
             on = false
         case .waiting:
-            if let since = unreachableSince, Date().timeIntervalSince(since) > 10 {
-                // Some TVs (e.g. TCL) don't let apps start at boot; after a restart the app needs one tap.
-                statusLine.attributedTitle = dot(.systemOrange, "Can't reach \(tvLabel). Open TV Display on the TV once")
+            if let since = unreachableSince, Date().timeIntervalSince(since) > 5 {
+                statusLine.attributedTitle = dot(.systemOrange, "Open TV Display on \(tvLabel)")
             } else {
                 statusLine.attributedTitle = dot(.systemYellow, "Connecting to \(tvLabel)…")
             }
@@ -376,7 +375,7 @@ final class Controller: NSObject, NSMenuDelegate {
         guard let s = session, state == .waiting || state == .streaming else { return }
         s.checkAlive()
         if !s.connected {
-            // The TV app starts by itself when the TV is on; just keep trying.
+            // Keep trying: it connects as soon as TV Display is opened on the TV.
             if unreachableSince == nil { unreachableSince = Date() }
             if state != .waiting { state = .waiting } else { refresh() }
             _ = s.takeStats()
@@ -492,7 +491,7 @@ final class Controller: NSObject, NSMenuDelegate {
     @objc func about() {
         NSApp.activate(ignoringOtherApps: true)
         NSApp.orderFrontStandardAboutPanel(options: [
-            .credits: NSAttributedString(string: "Wireless extended display for Android TV.\nInstall TV Display on the TV, then turn it on from the menu bar.",
+            .credits: NSAttributedString(string: "Wireless extended display for Android TV.\nOpen TV Display on the TV, then turn it on from the menu bar.",
                                          attributes: [.font: NSFont.systemFont(ofSize: 11),
                                                       .foregroundColor: NSColor.secondaryLabelColor]),
         ])
@@ -510,9 +509,9 @@ final class Controller: NSObject, NSMenuDelegate {
         a.icon = NSApp.applicationIconImage
         a.messageText = "TV Display is in your menu bar"
         a.informativeText = """
-        With TV Display installed on your TV, it finds the TV on your network and connects by \
-        itself; the TV switches to it automatically. Your TV appears as a second display: \
-        drag any window onto it. Use Text Size in the menu if text is too small to read.
+        Open TV Display on your TV: the Mac finds it on your network and connects by itself. \
+        Your TV appears as a second display: drag any window onto it. Use Text Size in the \
+        menu if text is too small to read.
 
         macOS will ask to find devices on your local network and for Screen Recording \
         permission the first time; both are needed to send the picture to the TV.

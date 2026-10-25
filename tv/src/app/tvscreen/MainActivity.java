@@ -12,6 +12,11 @@ import android.media.AudioTrack;
 import android.media.MediaCodec;
 import android.media.MediaFormat;
 import android.os.Bundle;
+import android.net.nsd.NsdManager;
+import android.net.nsd.NsdServiceInfo;
+import android.os.Build;
+import android.provider.Settings;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.KeyEvent;
@@ -34,6 +39,7 @@ import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
+import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.util.Collections;
@@ -48,7 +54,7 @@ import java.util.Collections;
  *   TV -> Mac: int64 sender time of each frame, echoed as soon as it is handed to the display,
  *              so the Mac can measure the round trip.
  */
-public class MainActivity extends Activity implements SurfaceHolder.Callback, ReceiverService.Sink {
+public class MainActivity extends Activity implements SurfaceHolder.Callback {
     static final int PORT = 7777;
     static final int TYPE_CONFIG = 0;
     static final int TYPE_AUDIO_FORMAT = 3, TYPE_AUDIO = 4;
@@ -62,7 +68,6 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback, Re
 
     // Counters for the optional stats overlay (OK button toggles it).
     private volatile int framesIn, framesOut;
-    private volatile long lastFrameAt;
     private volatile long bytesIn;
 
     @Override
@@ -202,20 +207,18 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback, Re
     protected void onStart() {
         super.onStart();
         running = true;
-        ReceiverService.start(this); // the always-on listener; it hands us the Mac's connection
-        ReceiverService.attach(this);
+        new Thread(this::listen, "listen").start();
+        announce();
         stats.postDelayed(statsTick, 1000);
     }
 
     @Override
     protected void onStop() {
         super.onStop();
-        Socket c = client;
-        // The surface (and with it the connection) can already be gone here, so judge by recent frames.
-        boolean streaming = System.currentTimeMillis() - lastFrameAt < 2000;
         running = false;
-        ReceiverService.detach(this, streaming);
-        closeQuietly(c);
+        unannounce();
+        closeQuietly(server);
+        closeQuietly(client);
         stats.removeCallbacks(statsTick);
     }
 
@@ -265,11 +268,33 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback, Re
 
     // ---- Network + decode ----
 
+    private ServerSocket server;
     private Thread current;
 
-    /** A new connection from the Mac (called by ReceiverService). It replaces the old one, even if wedged. */
-    @Override
-    public synchronized void onConnection(final Socket s) {
+    /** Listens for the Mac while TV Display is open. */
+    private void listen() {
+        ServerSocket ss;
+        try {
+            ss = new ServerSocket();
+            ss.setReuseAddress(true);
+            ss.bind(new InetSocketAddress(PORT));
+        } catch (IOException e) {
+            showIdle("Can\u2019t open port " + PORT + ": " + e.getMessage());
+            return;
+        }
+        server = ss;
+        if (!running) closeQuietly(ss); // stopped while binding
+        while (running && !ss.isClosed()) {
+            try {
+                onConnection(ss.accept());
+            } catch (IOException e) {
+                break;
+            }
+        }
+    }
+
+    /** A new connection from the Mac. It replaces the old one, even if wedged. */
+    private synchronized void onConnection(final Socket s) {
         closeQuietly(client);
         if (current != null) {
             try { current.join(1500); } catch (InterruptedException ignored) { }
@@ -431,7 +456,6 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback, Re
                 if (idx < 0) continue;
                 c.releaseOutputBuffer(idx, true); // show now; the Mac paces frames by our acks
                 framesOut++;
-                lastFrameAt = System.currentTimeMillis();
                 long ts = info.presentationTimeUs;
                 for (int i = 7; i >= 0; i--) { ack[i] = (byte) ts; ts >>>= 8; }
                 synchronized (out) {
@@ -454,6 +478,36 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback, Re
     }
 
     // ---- Helpers ----
+
+    // ---- Bonjour: lets the Mac find this TV by name while TV Display is open ----
+
+    static final String SERVICE_TYPE = "_tvdisplay._tcp";
+    private NsdManager.RegistrationListener announcement;
+
+    private void announce() {
+        String ip = localIp();
+        if (ip == null || announcement != null) return;
+        NsdServiceInfo info = new NsdServiceInfo();
+        String name = Settings.Global.getString(getContentResolver(), "device_name");
+        info.setServiceName(TextUtils.isEmpty(name) ? Build.MANUFACTURER + " " + Build.MODEL : name);
+        info.setServiceType(SERVICE_TYPE);
+        info.setPort(PORT);
+        info.setAttribute("ip", ip); // so the Mac needn't resolve the host name
+        info.setAttribute("port", String.valueOf(PORT));
+        announcement = new NsdManager.RegistrationListener() {
+            @Override public void onServiceRegistered(NsdServiceInfo i) { Log.i(TAG, "announced as " + i.getServiceName() + " (" + ip + ")"); }
+            @Override public void onRegistrationFailed(NsdServiceInfo i, int err) { Log.w(TAG, "announce failed " + err); }
+            @Override public void onServiceUnregistered(NsdServiceInfo i) { }
+            @Override public void onUnregistrationFailed(NsdServiceInfo i, int err) { }
+        };
+        ((NsdManager) getSystemService(NSD_SERVICE)).registerService(info, NsdManager.PROTOCOL_DNS_SD, announcement);
+    }
+
+    private void unannounce() {
+        if (announcement == null) return;
+        try { ((NsdManager) getSystemService(NSD_SERVICE)).unregisterService(announcement); } catch (Exception ignored) { }
+        announcement = null;
+    }
 
     /** The TV's IPv4 address on the local network, or null if it isn't connected. */
     static String localIp() {
