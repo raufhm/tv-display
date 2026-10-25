@@ -25,6 +25,7 @@ No cables, no ads, no accounts. Nothing leaves your network.
 | Latency | 63–70 ms typical, capture on the Mac → decoded on the TV |
 | Bitrate | 5, 8 or 12 Mbps cap |
 | Audio | optional, 48 kHz stereo (macOS 14.2+) |
+| Text size | Normal (1280×720), Larger (960×540 at 2×), Largest (800×450 at 2×) |
 
 Measured on a TCL Android TV (Realtek RTD284x, Android 9) over home Wi-Fi with an M1 Pro MacBook Pro.
 
@@ -45,7 +46,9 @@ adb install TV-Display.apk
 xattr -dr com.apple.quarantine "/Applications/TV Display.app"
 ```
 
-Open *TV Display* on the TV, then enter the address it shows into the Mac app and allow Screen Recording.
+Open *TV Display* on the TV once after installing it. From then on it waits in the background, including after the TV restarts.
+
+On the Mac, the app finds the TV on your network by itself (macOS asks to allow finding local network devices) and connects; the TV switches to TV Display automatically. Allow Screen Recording when asked. If the TV isn't found, pick **TV → Enter Address Manually…** and type the address shown on the TV.
 
 ## Build from source
 
@@ -86,6 +89,9 @@ Core Audio tap ─────────────────────�
 - **Virtual display:** `CGVirtualDisplay`, a private CoreGraphics API (the same one [DeskPad](https://github.com/Stengo/DeskPad) uses). Quitting the app removes the display.
 - **Latency control:** the TV acknowledges every frame it decodes, and the Mac keeps at most 4 frames in flight. The TV's display is locked to 60 Hz, so without this a surplus would queue up and latency would keep growing. The Mac skips frames *before* encoding, so the stream never breaks.
 - **Static screens:** many TV decoders only release a frame once later frames arrive, so when nothing changes the Mac re-sends the last frame (about 100 bytes) at a steady rate.
+- **Finding the TV:** the TV announces itself over Bonjour as `_tvdisplay._tcp`, with its IPv4 address and port in the TXT record, and re-announces when its address changes. The Mac lists every TV it finds under *TV* and follows the chosen one by name.
+- **Auto-start:** a small foreground service on the TV starts at boot, listens on port 7777 and brings TV Display to the front when the Mac connects. If you leave it with Back or Home while the Mac is streaming, it stays closed until the Mac stops retrying for 15 seconds.
+- **Text size:** *Larger* and *Largest* switch the virtual display to a 2× (Retina) mode, so macOS draws a smaller desktop with more pixels, which is then scaled to the 720p stream: bigger text that stays sharp.
 - **Self-healing:** a new connection replaces a stuck one. If the decoder wedges, the TV rebuilds it and asks the Mac for a key frame.
 - **Sound:** with *Sound → TV Speakers*, a Core Audio process tap captures everything the Mac plays and mutes it locally while it's sent to the TV.
 
@@ -94,7 +100,7 @@ Wire format (big-endian), Mac → TV: `int32 length, byte type, int64 capture ti
 ## Limitations
 
 - 720p only, matching most budget TVs.
-- The Mac and TV must be on the same network, and you type in the TV's address.
+- The Mac and TV must be on the same network.
 - Uses a private macOS API, so a future macOS update could break it.
 - Not notarized (that needs a paid Apple Developer account).
 
@@ -102,7 +108,7 @@ Wire format (big-endian), Mac → TV: `int32 length, byte type, int64 capture ti
 
 Issues and pull requests are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md), and if you try it on a new TV, please [send a TV report](https://github.com/raufhm/tv-display/issues/new?template=tv_report.yml). Ideas that would help:
 
-- Finding the TV automatically (Bonjour / Android NSD) instead of typing its IP
+- Pairing and encryption, so other devices on the network can't view or take over the stream
 - 1080p for TVs whose decoder can keep up
 - Test results from other TV brands and chips
 - Notarized release builds

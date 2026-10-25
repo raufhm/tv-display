@@ -34,7 +34,6 @@ import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
-import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.util.Collections;
@@ -49,7 +48,7 @@ import java.util.Collections;
  *   TV -> Mac: int64 sender time of each frame, echoed as soon as it is handed to the display,
  *              so the Mac can measure the round trip.
  */
-public class MainActivity extends Activity implements SurfaceHolder.Callback {
+public class MainActivity extends Activity implements SurfaceHolder.Callback, ReceiverService.Sink {
     static final int PORT = 7777;
     static final int TYPE_CONFIG = 0;
     static final int TYPE_AUDIO_FORMAT = 3, TYPE_AUDIO = 4;
@@ -60,11 +59,10 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     private volatile Surface surface;
     private volatile boolean running;
     private volatile Socket client;
-    private ServerSocket server;
-    private Thread serverThread;
 
     // Counters for the optional stats overlay (OK button toggles it).
     private volatile int framesIn, framesOut;
+    private volatile long lastFrameAt;
     private volatile long bytesIn;
 
     @Override
@@ -204,17 +202,20 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     protected void onStart() {
         super.onStart();
         running = true;
-        serverThread = new Thread(this::serve, "server");
-        serverThread.start();
+        ReceiverService.start(this); // the always-on listener; it hands us the Mac's connection
+        ReceiverService.attach(this);
         stats.postDelayed(statsTick, 1000);
     }
 
     @Override
     protected void onStop() {
         super.onStop();
+        Socket c = client;
+        // The surface (and with it the connection) can already be gone here, so judge by recent frames.
+        boolean streaming = System.currentTimeMillis() - lastFrameAt < 2000;
         running = false;
-        closeQuietly(server);
-        closeQuietly(client);
+        ReceiverService.detach(this, streaming);
+        closeQuietly(c);
         stats.removeCallbacks(statsTick);
     }
 
@@ -242,7 +243,8 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 
     private void showIdle(final String status) {
         runOnUiThread(() -> {
-            ipText.setText(localIp());
+            String ip = localIp();
+            ipText.setText(ip != null ? ip : "No network");
             statusText.setText(status);
             if (pulse.isPaused()) pulse.resume();
             if (idleView.getVisibility() != View.VISIBLE) {
@@ -263,40 +265,26 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 
     // ---- Network + decode ----
 
-    private void serve() {
-        try {
-            server = new ServerSocket();
-            server.setReuseAddress(true);
-            server.bind(new InetSocketAddress(PORT));
-        } catch (IOException e) {
-            showIdle("Can\u2019t open port " + PORT + ": " + e.getMessage());
-            return;
+    private Thread current;
+
+    /** A new connection from the Mac (called by ReceiverService). It replaces the old one, even if wedged. */
+    @Override
+    public synchronized void onConnection(final Socket s) {
+        closeQuietly(client);
+        if (current != null) {
+            try { current.join(1500); } catch (InterruptedException ignored) { }
         }
-        Thread current = null;
-        while (running) {
-            final Socket s;
+        client = s;
+        current = new Thread(() -> {
             try {
-                s = server.accept();
-            } catch (IOException e) {
-                break;
+                session(s);
+            } catch (Exception e) {
+                Log.i(TAG, "session ended: " + e);
             }
-            // A new sender replaces the old one, even if the old session is wedged.
-            closeQuietly(client);
-            if (current != null) {
-                try { current.join(1500); } catch (InterruptedException ignored) { }
-            }
-            client = s;
-            current = new Thread(() -> {
-                try {
-                    session(s);
-                } catch (Exception e) {
-                    Log.i(TAG, "session ended: " + e);
-                }
-                closeQuietly(s);
-                if (running && client == s) showIdle(STATUS_LOST);
-            }, "session");
-            current.start();
-        }
+            closeQuietly(s);
+            if (running && client == s) showIdle(STATUS_LOST);
+        }, "session");
+        current.start();
     }
 
     private void session(Socket s) throws Exception {
@@ -443,6 +431,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
                 if (idx < 0) continue;
                 c.releaseOutputBuffer(idx, true); // show now; the Mac paces frames by our acks
                 framesOut++;
+                lastFrameAt = System.currentTimeMillis();
                 long ts = info.presentationTimeUs;
                 for (int i = 7; i >= 0; i--) { ack[i] = (byte) ts; ts >>>= 8; }
                 synchronized (out) {
@@ -466,7 +455,8 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 
     // ---- Helpers ----
 
-    private static String localIp() {
+    /** The TV's IPv4 address on the local network, or null if it isn't connected. */
+    static String localIp() {
         try {
             for (NetworkInterface ni : Collections.list(NetworkInterface.getNetworkInterfaces())) {
                 if (!ni.isUp() || ni.isLoopback()) continue;
@@ -475,7 +465,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
                 }
             }
         } catch (Exception ignored) { }
-        return "no network";
+        return null;
     }
 
     private static void closeQuietly(java.io.Closeable c) {

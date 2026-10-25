@@ -19,9 +19,9 @@ cp "$ART/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
 mkdir -p build
 for arch in arm64 x86_64; do
   swiftc -O -swift-version 5 -target $arch-apple-macos14 -import-objc-header CGVirtualDisplay.h \
-    main.swift Stream.swift AudioTap.swift \
+    main.swift Stream.swift AudioTap.swift Discovery.swift \
     -framework AppKit -framework CoreGraphics -framework ScreenCaptureKit -framework VideoToolbox \
-    -framework CoreMedia -framework CoreVideo -framework ServiceManagement -framework CoreAudio -framework AudioToolbox \
+    -framework CoreMedia -framework CoreVideo -framework ServiceManagement -framework CoreAudio -framework AudioToolbox -framework Network \
     -o build/TVDisplay-$arch
 done
 lipo -create build/TVDisplay-arm64 build/TVDisplay-x86_64 -output "$APP/Contents/MacOS/TVDisplay"

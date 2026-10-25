@@ -13,10 +13,23 @@ setvbuf(stdout, nil, _IOLBF, 0)
 
 enum Prefs {
     static let d = UserDefaults.standard
-    /// The TV's IP address; nil until the user enters it (the TV shows it on screen).
+    /// The TV's IP address: from discovery, or typed in by hand. Nil until a TV is chosen.
     static var host: String? {
         get { d.string(forKey: "host") }
         set { d.set(newValue, forKey: "host") }
+    }
+    static var port: UInt16 {
+        get { UInt16(d.integer(forKey: "port") == 0 ? 7777 : d.integer(forKey: "port")) }
+        set { d.set(Int(newValue), forKey: "port") }
+    }
+    /// The chosen TV's network name; nil when the address was typed in by hand.
+    static var tvName: String? {
+        get { d.string(forKey: "tvName") }
+        set { d.set(newValue, forKey: "tvName") }
+    }
+    static var textSize: TextSize {
+        get { TextSize(rawValue: d.integer(forKey: "textSize")) ?? .normal }
+        set { d.set(newValue.rawValue, forKey: "textSize") }
     }
     static var fps: Int {
         get { d.object(forKey: "fps") as? Int ?? 60 }
@@ -40,7 +53,7 @@ enum Prefs {
 
 final class Controller: NSObject, NSMenuDelegate {
     enum State: Equatable {
-        case off, starting, needsPermission, waiting, streaming, failed(String)
+        case off, searching, starting, needsPermission, waiting, streaming, failed(String)
     }
 
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
@@ -50,8 +63,10 @@ final class Controller: NSObject, NSMenuDelegate {
     private var statsText = ""
     private var statsTimer: Timer?
     private var permissionTimer: Timer?
-    private var disconnectedSince: Date?
-    private var lastReceiverLaunch = Date.distantPast
+    private let discovery = Discovery()
+    private let tvMenu = NSMenu()
+
+    private var tvLabel: String { Prefs.tvName ?? Prefs.host ?? "TV" }
 
     // Menu items that change while the menu is open
     private let statusLine = NSMenuItem()
@@ -67,6 +82,63 @@ final class Controller: NSObject, NSMenuDelegate {
 
         statsTimer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in self?.tick() }
         RunLoop.main.add(statsTimer!, forMode: .common) // keep ticking while the menu is open
+
+        discovery.onChange = { [weak self] tvs in self?.found(tvs) }
+        discovery.start()
+    }
+
+    // MARK: Finding the TV
+
+    /// New discovery results: pick a TV on first run, and follow the chosen TV if its address changes.
+    private func found(_ tvs: [FoundTV]) {
+        if Prefs.host == nil, let first = tvs.first {
+            choose(first)
+        } else if let name = Prefs.tvName, let tv = tvs.first(where: { $0.name == name }),
+                  tv.ip != Prefs.host || tv.port != Prefs.port {
+            log("\(name) moved to \(tv.ip)")
+            Prefs.host = tv.ip
+            Prefs.port = tv.port
+            if let s = session, !s.connected { restartIfOn() }
+        }
+        if state == .searching, Prefs.host != nil { state = .off; turnOn() }
+        refresh()
+    }
+
+    private func choose(_ tv: FoundTV) {
+        Prefs.tvName = tv.name
+        Prefs.host = tv.ip
+        Prefs.port = tv.port
+        log("using \(tv.name) at \(tv.ip):\(tv.port)")
+    }
+
+    @objc func pickTV(_ sender: NSMenuItem) {
+        guard sender.tag < discovery.tvs.count else { return }
+        let tv = discovery.tvs[sender.tag]
+        let changed = tv.name != Prefs.tvName || tv.ip != Prefs.host
+        choose(tv)
+        if changed { restartIfOn() }
+        if session == nil { turnOn() }
+    }
+
+    private func rebuildTVMenu() {
+        tvMenu.removeAllItems()
+        if discovery.tvs.isEmpty {
+            let none = NSMenuItem(title: "Looking for TVs…", action: nil, keyEquivalent: "")
+            none.isEnabled = false
+            tvMenu.addItem(none)
+        }
+        for (i, tv) in discovery.tvs.enumerated() {
+            let it = item(tv.name, #selector(pickTV(_:)))
+            it.tag = i
+            it.state = tv.name == Prefs.tvName ? .on : .off
+            it.toolTip = "\(tv.ip):\(tv.port)"
+            tvMenu.addItem(it)
+        }
+        tvMenu.addItem(.separator())
+        let manual = item(Prefs.tvName == nil && Prefs.host != nil ? "Address: \(Prefs.host!)…" : "Enter Address Manually…",
+                          #selector(editAddress))
+        if Prefs.tvName == nil && Prefs.host != nil { manual.state = .on }
+        tvMenu.addItem(manual)
     }
 
     // MARK: Menu
@@ -103,7 +175,19 @@ final class Controller: NSObject, NSMenuDelegate {
         menu.addItem(item("Arrange Displays…", #selector(openDisplays)))
         menu.addItem(.separator())
 
-        menu.addItem(item("TV Address…", #selector(editAddress)))
+        let tvItem = NSMenuItem(title: "TV", action: nil, keyEquivalent: "")
+        tvItem.submenu = tvMenu
+        menu.addItem(tvItem)
+
+        let textMenu = NSMenu()
+        for size in TextSize.allCases {
+            let i = item(size.title, #selector(setTextSize(_:)))
+            i.tag = size.rawValue
+            textMenu.addItem(i)
+        }
+        let textItem = NSMenuItem(title: "Text Size", action: nil, keyEquivalent: "")
+        textItem.submenu = textMenu
+        menu.addItem(textItem)
 
         let fpsMenu = NSMenu()
         for f in [30, 60] {
@@ -150,18 +234,20 @@ final class Controller: NSObject, NSMenuDelegate {
 
     func menuNeedsUpdate(_ menu: NSMenu) {
         refresh()
+        rebuildTVMenu()
         for i in menu.items {
             if let sub = i.submenu {
                 for s in sub.items {
                     if s.action == #selector(setFps(_:)) { s.state = s.tag == Prefs.fps ? .on : .off }
                     if s.action == #selector(setQuality(_:)) { s.state = s.tag == Prefs.mbps ? .on : .off }
                     if s.action == #selector(setSound(_:)) { s.state = (s.tag == 1) == Prefs.audioOnTV ? .on : .off }
+                    if s.action == #selector(setTextSize(_:)) { s.state = s.tag == Prefs.textSize.rawValue ? .on : .off }
                 }
             }
             if i.identifier?.rawValue == "login" {
                 i.state = SMAppService.mainApp.status == .enabled ? .on : .off
             }
-            if i.action == #selector(editAddress) { i.title = "TV Address: \(Prefs.host ?? "not set")…" }
+            if i.submenu === tvMenu { i.title = Prefs.host == nil ? "TV" : "TV: \(tvLabel)" }
         }
     }
 
@@ -179,6 +265,9 @@ final class Controller: NSObject, NSMenuDelegate {
         case .off:
             statusLine.attributedTitle = dot(.tertiaryLabelColor, "Off")
             on = false
+        case .searching:
+            statusLine.attributedTitle = dot(.systemYellow, "Looking for your TV…")
+            on = true
         case .starting:
             statusLine.attributedTitle = dot(.systemYellow, "Starting…")
             on = true
@@ -186,10 +275,10 @@ final class Controller: NSObject, NSMenuDelegate {
             statusLine.attributedTitle = dot(.systemOrange, "Needs Screen Recording permission")
             on = false
         case .waiting:
-            statusLine.attributedTitle = dot(.systemYellow, "Looking for TV at \(Prefs.host ?? "")…")
+            statusLine.attributedTitle = dot(.systemYellow, "Connecting to \(tvLabel)…")
             on = true
         case .streaming:
-            statusLine.attributedTitle = dot(.systemGreen, "Streaming to \(Prefs.host ?? "")")
+            statusLine.attributedTitle = dot(.systemGreen, "Streaming to \(tvLabel)")
             on = true
         case .failed(let msg):
             statusLine.attributedTitle = dot(.systemRed, msg)
@@ -222,14 +311,14 @@ final class Controller: NSObject, NSMenuDelegate {
     // MARK: Streaming
 
     @objc func toggle() {
-        if session != nil || state == .starting { turnOff() } else { turnOn() }
+        if session != nil || state == .starting || state == .searching { turnOff() } else { turnOn() }
     }
 
     func turnOn() {
         guard session == nil else { return }
         guard let host = Prefs.host else {
-            // First run: ask for the address shown on the TV, then start.
-            if askForAddress() { turnOn() }
+            // First run: wait for discovery to find a TV (found() starts streaming then).
+            state = .searching
             return
         }
         guard hasScreenRecording(prompt: true) else {
@@ -239,8 +328,8 @@ final class Controller: NSObject, NSMenuDelegate {
         }
         state = .starting
         statsText = ""
-        disconnectedSince = nil
-        let settings = StreamSettings(host: host, fps: Prefs.fps, mbps: Prefs.mbps)
+        let settings = StreamSettings(host: host, port: Prefs.port, fps: Prefs.fps, mbps: Prefs.mbps,
+                                      textSize: Prefs.textSize)
         Task { @MainActor in
             do {
                 let s = try StreamSession(settings)
@@ -280,19 +369,11 @@ final class Controller: NSObject, NSMenuDelegate {
     private func tick() {
         guard let s = session, state == .waiting || state == .streaming else { return }
         if !s.connected {
+            // The TV app starts by itself when the TV is on; just keep trying.
             if state != .waiting { state = .waiting }
-            // The receiver may simply not be open on the TV; open it via adb if available.
-            let since = disconnectedSince ?? Date()
-            disconnectedSince = since
-            if Adb.path != nil, Date().timeIntervalSince(since) > 2,
-               Date().timeIntervalSince(lastReceiverLaunch) > 10 {
-                lastReceiverLaunch = Date()
-                if let h = Prefs.host { Adb.launchReceiver(host: h) }
-            }
             _ = s.takeStats()
             return
         }
-        disconnectedSince = nil
         let st = s.takeStats()
         let lat = st.latencies.sorted()
         var parts = ["\(st.frames) fps", String(format: "%.1f Mbps", Double(st.bytes) * 8 / 1e6)]
@@ -365,11 +446,17 @@ final class Controller: NSObject, NSMenuDelegate {
             return askForAddress()
         }
         Prefs.host = ip
+        Prefs.port = 7777
+        Prefs.tvName = nil // typed in by hand: stop following discovery
         return true
     }
 
     @objc func setFps(_ sender: NSMenuItem) { Prefs.fps = sender.tag; restartIfOn() }
     @objc func setQuality(_ sender: NSMenuItem) { Prefs.mbps = sender.tag; restartIfOn() }
+    @objc func setTextSize(_ sender: NSMenuItem) {
+        Prefs.textSize = TextSize(rawValue: sender.tag) ?? .normal
+        session?.apply(textSize: Prefs.textSize) // switches live
+    }
     @objc func setSound(_ sender: NSMenuItem) {
         Prefs.audioOnTV = sender.tag == 1
         session?.setAudioOnTV(Prefs.audioOnTV) // switches live, no restart
@@ -396,7 +483,7 @@ final class Controller: NSObject, NSMenuDelegate {
     @objc func about() {
         NSApp.activate(ignoringOtherApps: true)
         NSApp.orderFrontStandardAboutPanel(options: [
-            .credits: NSAttributedString(string: "Wireless extended display for Android TV.\nOpen “TV Display” on the TV, then turn it on from the menu bar.",
+            .credits: NSAttributedString(string: "Wireless extended display for Android TV.\nInstall TV Display on the TV, then turn it on from the menu bar.",
                                          attributes: [.font: NSFont.systemFont(ofSize: 11),
                                                       .foregroundColor: NSColor.secondaryLabelColor]),
         ])
@@ -414,11 +501,12 @@ final class Controller: NSObject, NSMenuDelegate {
         a.icon = NSApp.applicationIconImage
         a.messageText = "TV Display is in your menu bar"
         a.informativeText = """
-        Open TV Display on your TV, then click the TV icon in the menu bar and choose \
-        Turn On TV Display. Your TV appears as a second display — drag any window onto it.
+        With TV Display installed on your TV, it finds the TV on your network and connects by \
+        itself; the TV switches to it automatically. Your TV appears as a second display: \
+        drag any window onto it. Use Text Size in the menu if text is too small to read.
 
-        macOS will ask for Screen Recording permission the first time; it's needed to send \
-        the picture to the TV.
+        macOS will ask to find devices on your local network and for Screen Recording \
+        permission the first time; both are needed to send the picture to the TV.
         """
         a.addButton(withTitle: "Got It")
         NSApp.activate(ignoringOtherApps: true)
