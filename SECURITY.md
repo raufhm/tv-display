@@ -17,6 +17,6 @@ Include what you found, how to reproduce it, and which versions of the Mac app, 
 ## Known limitations (by design, for now)
 
 - The stream between the Mac and the TV is **not encrypted**. Anyone on the same local network who can capture its traffic could see what's on the TV display. Only use it on networks you trust.
-- The TV accepts a connection from any device on the local network on port 7777, and the newest connection takes over the screen. Since version 1.1 the TV listens in the background from boot and announces itself on the network (Bonjour), so this applies whenever the TV is on.
+- The TV accepts a connection from any device on the local network on port 7777, and the newest connection takes over the screen. The TV only listens, and announces itself on the network (Bonjour), while TV Display is open on screen.
 
 Proposals to add pairing or encryption are welcome as issues.
