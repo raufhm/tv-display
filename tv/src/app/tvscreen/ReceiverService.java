@@ -82,6 +82,7 @@ public class ReceiverService extends Service {
     public void onCreate() {
         super.onCreate();
         goForeground();
+        KickJob.schedule(this); // comes back after a restart even where boot start is blocked
         acceptThread = new Thread(this::acceptLoop, "accept");
         acceptThread.start();
         nsd = (NsdManager) getSystemService(NSD_SERVICE);

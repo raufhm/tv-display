@@ -67,6 +67,7 @@ final class Controller: NSObject, NSMenuDelegate {
     private let tvMenu = NSMenu()
 
     private var tvLabel: String { Prefs.tvName ?? Prefs.host ?? "TV" }
+    private var unreachableSince: Date?
 
     // Menu items that change while the menu is open
     private let statusLine = NSMenuItem()
@@ -275,7 +276,12 @@ final class Controller: NSObject, NSMenuDelegate {
             statusLine.attributedTitle = dot(.systemOrange, "Needs Screen Recording permission")
             on = false
         case .waiting:
-            statusLine.attributedTitle = dot(.systemYellow, "Connecting to \(tvLabel)…")
+            if let since = unreachableSince, Date().timeIntervalSince(since) > 10 {
+                // Some TVs (e.g. TCL) don't let apps start at boot; after a restart the app needs one tap.
+                statusLine.attributedTitle = dot(.systemOrange, "Can't reach \(tvLabel). Open TV Display on the TV once")
+            } else {
+                statusLine.attributedTitle = dot(.systemYellow, "Connecting to \(tvLabel)…")
+            }
             on = true
         case .streaming:
             statusLine.attributedTitle = dot(.systemGreen, "Streaming to \(tvLabel)")
@@ -368,12 +374,15 @@ final class Controller: NSObject, NSMenuDelegate {
 
     private func tick() {
         guard let s = session, state == .waiting || state == .streaming else { return }
+        s.checkAlive()
         if !s.connected {
             // The TV app starts by itself when the TV is on; just keep trying.
-            if state != .waiting { state = .waiting }
+            if unreachableSince == nil { unreachableSince = Date() }
+            if state != .waiting { state = .waiting } else { refresh() }
             _ = s.takeStats()
             return
         }
+        unreachableSince = nil
         let st = s.takeStats()
         let lat = st.latencies.sorted()
         var parts = ["\(st.frames) fps", String(format: "%.1f Mbps", Double(st.bytes) * 8 / 1e6)]
