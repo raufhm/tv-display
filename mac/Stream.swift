@@ -303,6 +303,19 @@ final class Link {
         }
     }
 
+    /// The TV confirms every frame, and the Mac sends at least a repeat frame many times a second, so
+    /// three seconds of silence means the TV has gone (restarted, unplugged, off Wi-Fi). TCP alone can
+    /// take minutes to notice that.
+    func checkAlive() {
+        lock.lock()
+        let s = fd, stale = fd >= 0 && hostNowUs() - lastAckUs > 3_000_000
+        lock.unlock()
+        if stale {
+            log("no answer from the TV for 3 s, reconnecting")
+            drop(s)
+        }
+    }
+
     func takeStats() -> LinkStats {
         lock.lock(); defer { lock.unlock() }
         let r = stats
@@ -616,6 +629,7 @@ final class StreamSession {
     }
 
     func takeStats() -> LinkStats { link.takeStats() }
+    func checkAlive() { link.checkAlive() }
 
     /// Changes the text size live; the stream keeps running.
     func apply(textSize: TextSize) {

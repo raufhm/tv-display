@@ -14,7 +14,7 @@ rm -rf build && mkdir -p build/gen build/classes build/dex
 
 "$BT/aapt2" compile --dir res -o build/res.zip
 "$BT/aapt2" link -I "$JAR" --manifest AndroidManifest.xml --java build/gen \
-  --min-sdk-version 28 --target-sdk-version 34 --version-code 2 --version-name 1.1 \
+  --min-sdk-version 28 --target-sdk-version 34 --version-code 3 --version-name 1.1.1 \
   -o build/unsigned.apk build/res.zip
 
 javac -nowarn --release 11 -classpath "$JAR" -d build/classes \
